@@ -1,4 +1,4 @@
-# tocrip
+# tocRip
 
 A command-line tool for working with the table of contents (TOC) of a PDF — typically a music score book where each TOC entry is a song and its starting page.
 
