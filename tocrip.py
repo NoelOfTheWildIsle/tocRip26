@@ -10,63 +10,88 @@ from pypdf import PdfReader, PdfWriter
 def clean_title(title):
     """Clean up common PDF text extraction artifacts in titles."""
     # Remove multiple spaces first
-    title = re.sub(r'\s+', ' ', title)
+    title = re.sub(r"\s+", " ", title)
 
     # Remove common PDF extraction artifacts at the start of titles
     # Only remove if they're clearly not part of the title (standalone symbols/letters)
     # Common bullet points and decorative symbols
-    title = re.sub(r'^[\s•·▪▸▹►▻◆◇○●◉◎◦⦁⦾]+', '', title)
+    title = re.sub(r"^[\s•·▪▸▹►▻◆◇○●◉◎◦⦁⦾]+", "", title)
 
     # Remove standalone single letters only if followed by another space and then a capital letter
     # This preserves "A " in "A Time for Us" but removes "W " in "W Everything"
-    title = re.sub(r'^[A-Z]\s+(?=[A-Z])', '', title)
+    title = re.sub(r"^[A-Z]\s+(?=[A-Z])", "", title)
 
     # Remove Chinese characters and other non-Latin symbols
-    title = re.sub(r'[门具贝]', '', title)
+    title = re.sub(r"[门具贝]", "", title)
 
     # Remove # symbols at start
-    title = re.sub(r'^#\s*', '', title)
+    title = re.sub(r"^#\s*", "", title)
 
     # Fix common single-character spacing issues
     # Pattern: single uppercase letter followed by space and more letters
-    title = re.sub(r'\b([A-Z])\s+([A-Za-z])', r'\1\2', title)
+    title = re.sub(r"\b([A-Z])\s+([A-Za-z])", r"\1\2", title)
 
     # Fix words that got split with spaces between characters
-    title = re.sub(r'\b([A-Z])\s([A-Z])\s([A-Z])\s([A-Z])\b', r'\1\2\3\4', title)
-    title = re.sub(r'\b([A-Z])\s([A-Z])\s([A-Z])\b', r'\1\2\3', title)
-    title = re.sub(r'\b([A-Z])\s([A-Z])\b', r'\1\2', title)
+    title = re.sub(r"\b([A-Z])\s([A-Z])\s([A-Z])\s([A-Z])\b", r"\1\2\3\4", title)
+    title = re.sub(r"\b([A-Z])\s([A-Z])\s([A-Z])\b", r"\1\2\3", title)
+    title = re.sub(r"\b([A-Z])\s([A-Z])\b", r"\1\2", title)
 
     # Fix "You ' re" -> "You're" and similar contractions
     title = re.sub(r"\b([A-Za-z]+)\s+'\s*([a-z]+)", r"\1'\2", title)
 
     # Fix specific common split words
-    title = re.sub(r'\bY\s+ou\b', 'You', title)
-    title = re.sub(r'\bT\s+he\b', 'The', title)
-    title = re.sub(r'\bT\s+ears?\b', 'Tears', title)
-    title = re.sub(r'\bY\s+our?\b', 'Your', title)
-    title = re.sub(r'\bY\s+ou\'?re?\b', "You're", title)
-    title = re.sub(r'\bW\s+hat\b', 'What', title)
-    title = re.sub(r'\bW\s+hen\b', 'When', title)
-    title = re.sub(r'\bW\s+here\b', 'Where', title)
-    title = re.sub(r'\bW\s+hich\b', 'Which', title)
-    title = re.sub(r'\bW\s+ho\b', 'Who', title)
-    title = re.sub(r'\bW\s+hy\b', 'Why', title)
-    title = re.sub(r'\bW\s+e\'?ve?\b', "We've", title)
-    title = re.sub(r'\bI\s+(?=[a-z])', 'I', title)  # Fix "I Fall" -> "IFall" -> "I Fall" issue
+    title = re.sub(r"\bY\s+ou\b", "You", title)
+    title = re.sub(r"\bT\s+he\b", "The", title)
+    title = re.sub(r"\bT\s+ears?\b", "Tears", title)
+    title = re.sub(r"\bY\s+our?\b", "Your", title)
+    title = re.sub(r"\bY\s+ou\'?re?\b", "You're", title)
+    title = re.sub(r"\bW\s+hat\b", "What", title)
+    title = re.sub(r"\bW\s+hen\b", "When", title)
+    title = re.sub(r"\bW\s+here\b", "Where", title)
+    title = re.sub(r"\bW\s+hich\b", "Which", title)
+    title = re.sub(r"\bW\s+ho\b", "Who", title)
+    title = re.sub(r"\bW\s+hy\b", "Why", title)
+    title = re.sub(r"\bW\s+e\'?ve?\b", "We've", title)
+    title = re.sub(
+        r"\bI\s+(?=[a-z])", "I", title
+    )  # Fix "I Fall" -> "IFall" -> "I Fall" issue
 
     # Apply the general fix multiple times for remaining cases
     for _ in range(3):
-        title = re.sub(r'\b([A-Z])\s+([a-z])', r'\1\2', title)
+        title = re.sub(r"\b([A-Z])\s+([a-z])", r"\1\2", title)
 
     # Fix merged words that should be separate (like "IFall" -> "I Fall")
-    title = re.sub(r'\bI([A-Z][a-z]+)\b', r'I \1', title)
+    title = re.sub(r"\bI([A-Z][a-z]+)\b", r"I \1", title)
 
     # Remove leading/trailing whitespace and dots
     title = title.strip()
-    title = re.sub(r'\.{2,}$', '', title)
-    title = re.sub(r'[-–]\s*$', '', title)
+    title = re.sub(r"\.{2,}$", "", title)
+    title = re.sub(r"[-–]\s*$", "", title)
 
     return title
+
+
+def should_skip_title(title):
+    """Check if a title should be skipped (e.g., 'Registration' entries)."""
+    # List of titles to skip (case-insensitive)
+    skip_titles = [
+        "registration",
+        "registrations",
+    ]
+
+    # Clean and normalize the title for comparison
+    normalized = title.strip().lower()
+
+    # Check exact matches
+    if normalized in skip_titles:
+        return True
+
+    # Check if title starts with or contains common patterns to skip
+    # This catches variations like "Registration Form", "Registration Page", etc.
+    if normalized.startswith("registration") or " registration" in normalized:
+        return True
+
+    return False
 
 
 def extract_toc_from_pdf(pdf_path):
@@ -97,7 +122,7 @@ def extract_toc_from_pdf(pdf_path):
             continue
 
         # Split text into lines to process line by line
-        lines = text.split('\n')
+        lines = text.split("\n")
 
         for line in lines:
             # Clean the line first to remove artifacts
@@ -107,11 +132,11 @@ def extract_toc_from_pdf(pdf_path):
 
             # Remove common PDF extraction artifacts from the line
             # Only remove standalone single letters at the very start if followed by space and capital
-            line = re.sub(r'^[A-Z]\s+(?=[A-Z])', '', line)
+            line = re.sub(r"^[A-Z]\s+(?=[A-Z])", "", line)
             # Remove special Unicode characters
-            line = re.sub(r'[门具贝◆◇○●◉◎◦•·▪▸▹►▻]', '', line)
+            line = re.sub(r"[门具贝◆◇○●◉◎◦•·▪▸▹►▻]", "", line)
             # Remove # at start
-            line = re.sub(r'^#\s*', '', line)
+            line = re.sub(r"^#\s*", "", line)
 
             # Try each pattern on individual lines first
             for pattern in patterns:
@@ -133,15 +158,22 @@ def extract_toc_from_pdf(pdf_path):
                         # Clean up title using the cleaning function
                         title = clean_title(title)
 
-                        # Validate that the title isn't just numbers or too short
-                        if (len(title) >= 3 and
-                            re.search(r"[A-Za-z]{2,}", title) and  # At least 2 letters
-                            1 <= page <= len(reader.pages) and
-                            not any(word in title.lower()
-                                   for word in ["indd", "all pages", "collectionpiano"])):
+                        # Skip titles that match our exclusion list
+                        if should_skip_title(title):
+                            continue
 
+                        # Validate that the title isn't just numbers or too short
+                        if (
+                            len(title) >= 3
+                            and re.search(r"[A-Za-z]{2,}", title)  # At least 2 letters
+                            and 1 <= page <= len(reader.pages)
+                            and not any(
+                                word in title.lower()
+                                for word in ["indd", "all pages", "collectionpiano"]
+                            )
+                        ):
                             # Additional check: title shouldn't contain another page number pattern
-                            if not re.search(r'\b\d{2,4}\b', title):
+                            if not re.search(r"\b\d{2,4}\b", title):
                                 all_entries.append((title, page))
                                 break  # Found a match for this line, move to next line
 
@@ -156,26 +188,33 @@ def extract_toc_from_pdf(pdf_path):
                 continue
 
             # Clean the text first
-            text = re.sub(r'[门具贝◆◇○●◉◎◦•·▪▸▹►▻]', '', text)
-            text = re.sub(r'^[A-Z]\s+(?=[A-Z])', '', text, flags=re.MULTILINE)
-            text = re.sub(r'^#\s*', '', text, flags=re.MULTILINE)
+            text = re.sub(r"[门具贝◆◇○●◉◎◦•·▪▸▹►▻]", "", text)
+            text = re.sub(r"^[A-Z]\s+(?=[A-Z])", "", text, flags=re.MULTILINE)
+            text = re.sub(r"^#\s*", "", text, flags=re.MULTILINE)
 
             # Try to split by common delimiters
             # Look for patterns like "Title 123" separated by whitespace
             potential_entries = re.findall(
-                r'([A-Za-z][^0-9]{3,80}?)\s+(\d{1,4})(?=\s|$)',
-                text
+                r"([A-Za-z][^0-9]{3,80}?)\s+(\d{1,4})(?=\s|$)", text
             )
 
             for title, page_str in potential_entries:
                 page = int(page_str)
                 title = clean_title(title)
 
-                if (len(title) >= 3 and
-                    re.search(r"[A-Za-z]{2,}", title) and
-                    1 <= page <= len(reader.pages) and
-                    not any(word in title.lower()
-                           for word in ["indd", "all pages", "collectionpiano"])):
+                # Skip titles that match our exclusion list
+                if should_skip_title(title):
+                    continue
+
+                if (
+                    len(title) >= 3
+                    and re.search(r"[A-Za-z]{2,}", title)
+                    and 1 <= page <= len(reader.pages)
+                    and not any(
+                        word in title.lower()
+                        for word in ["indd", "all pages", "collectionpiano"]
+                    )
+                ):
                     all_entries.append((title, page))
 
     # Remove duplicates while preserving order
@@ -231,17 +270,22 @@ def load_toc_from_file(toc_file_path, pdf_page_count=None):
         # Format 3: "Title Page" (page number last)
         if page is None:
             # Find the last number in the line
-            match_end = re.search(r'\s+(\d+)\s*$', line)
+            match_end = re.search(r"\s+(\d+)\s*$", line)
             if match_end:
                 try:
                     page = int(match_end.group(1))
-                    title = line[:match_end.start()].strip()
+                    title = line[: match_end.start()].strip()
                 except ValueError:
                     pass
 
         if title and page:
             # Clean title from file input too
             title = clean_title(title)
+
+            # Skip titles that match our exclusion list
+            if should_skip_title(title):
+                print(f"Note: Skipping entry with title '{title}' on line {line_num}")
+                continue
 
             # Validate page number against PDF if available
             if pdf_page_count and page > pdf_page_count:
@@ -396,18 +440,19 @@ def apply_offset_to_entries(toc_entries, offset):
 def sanitize_filename(name, max_length=100):
     """Turn a song title into a filename that's safe on Windows/macOS/Linux."""
     # Strip characters that are illegal in filenames on common filesystems
-    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '', name)
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", name)
     # Collapse whitespace
-    name = re.sub(r'\s+', ' ', name).strip()
+    name = re.sub(r"\s+", " ", name).strip()
     # Windows dislikes trailing dots/spaces
-    name = name.strip('. ')
+    name = name.strip(". ")
     if not name:
         name = "untitled"
     return name[:max_length].strip()
 
 
-def split_pdf_by_song(input_pdf_path, toc_entries, output_dir=None,
-                      add_bookmarks=False):
+def split_pdf_by_song(
+    input_pdf_path, toc_entries, output_dir=None, add_bookmarks=False
+):
     """Split a PDF into one file per song using the TOC entries as boundaries.
 
     Each song spans from its own start page up to the page just before the next
@@ -471,8 +516,10 @@ def split_pdf_by_song(input_pdf_path, toc_entries, output_dir=None,
 
         page_count = end_idx - start_idx
         plural = "s" if page_count != 1 else ""
-        print(f"  ✓ {candidate}.pdf  "
-              f"(pages {start_idx + 1}-{end_idx}, {page_count} page{plural})")
+        print(
+            f"  ✓ {candidate}.pdf  "
+            f"(pages {start_idx + 1}-{end_idx}, {page_count} page{plural})"
+        )
         files_written += 1
 
     plural = "s" if files_written != 1 else ""
@@ -585,13 +632,12 @@ def main():
         "--split",
         action="store_true",
         help="Split the PDF into a separate PDF for each song in the TOC, "
-             "instead of adding bookmarks",
+        "instead of adding bookmarks",
     )
     parser.add_argument(
         "--split-dir",
         metavar="DIR",
-        help="Directory to write split song PDFs into "
-             "(default: <pdfname>_songs)",
+        help="Directory to write split song PDFs into (default: <pdfname>_songs)",
     )
     parser.add_argument(
         "--split-bookmarks",
@@ -763,12 +809,16 @@ def main():
 
             # Re-validate against PDF page count
             revalidated = [
-                (title, page) for title, page in valid_entries if 1 <= page <= pdf_page_count
+                (title, page)
+                for title, page in valid_entries
+                if 1 <= page <= pdf_page_count
             ]
             revalidated_invalid = len(valid_entries) - len(revalidated)
 
             if revalidated_invalid > 0:
-                print(f"\n⚠️  After offset, {revalidated_invalid} entries are outside PDF range (1-{pdf_page_count})")
+                print(
+                    f"\n⚠️  After offset, {revalidated_invalid} entries are outside PDF range (1-{pdf_page_count})"
+                )
                 print("These entries will be skipped.")
                 valid_entries = revalidated
 
